@@ -1,0 +1,14 @@
+python-dotenv
+requests
+langchain
+webdriver-manager
+playwright
+browser-use
+streamlit
+flask
+waitress
+langchain-core
+langchain-community
+duckduckgo-search
+youtube_transcript_api
+

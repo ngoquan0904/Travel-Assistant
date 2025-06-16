@@ -6,16 +6,16 @@
 
 - ✈️ Flight and hotel recommendations based on user preferences  
 - 🎥 YouTube travel video integration for a richer experience  
-- 📍 Smart destination suggestions via DuckDuckGo search  
+- 📍 Smart destination suggestions via Serper search  
 - 📝 Automated travel summary generated from user input  
 - 🗺️ Local insights and travel tips via conversational assistant
 
 ## 🛠️ Technical Stack
 
 - **Frontend**: Streamlit  
-- **Backend**: Flask  
+- **Backend**: Flask    
 - **Language Models**: Gemini 1.5  
-- **Search**: DuckDuckGo API  
+- **Search**: SerperSearchTool  
 - **Web Data (Realtime, Datasets, Scraping)**: Playwright  
 - **Browser Automation**: `browser_use` (`Agent`, `Browser`, `BrowserConfig`)  
 - **YouTube Transcript Loader**: `YouTubeTranscriptApi`  

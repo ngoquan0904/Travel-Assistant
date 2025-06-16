@@ -1,12 +1,13 @@
 import streamlit as st 
 import asyncio
 from datetime import datetime
-from backend.travel_summary import TravelSummary
-from backend.api_client import TravelAPIClient
-from backend.Agent.duckduck import ResearchAssistant
-from backend.user_input_summary import get_flight_details, get_hotel_details
+from travel_summary import TravelSummary
+from api_client import TravelAPIClient
+from duckduck import ResearchAssistant
+from user_input_summary import get_flight_details, get_hotel_details
 from constant import *
-from backend.config.model import chat_based_on_context
+from model import chat_based_on_context
+import re
 st.markdown("""
     <style>
     html, body, [class*="css"]  {
@@ -234,53 +235,84 @@ def render_hotel_search_tab():
         display_parsed_hotel_details(parsed_data)
         progress_container = st.container()
         search_hotel_options(parsed_data, requirements, progress_container)
-
+def clean_response(text):
+    text = re.sub(r'\s*•\s*', '\n- ', text)  
+    text = re.sub(r'\.\s*', '.\n', text)     
+    text = re.sub(r'\s{2,}', ' ', text)      
+    return text.strip()
+def format_review_response(text):
+    # Tách các mục dựa trên số thứ tự hoặc dấu chấm
+    lines = re.split(r'(?<=\d\.)\s+', text)
+    formatted = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        # Đánh dấu tên quán ăn bằng in đậm nếu có
+        match = re.match(r"^([\w\s&'’\-\.]+)\.?\s*(\d\.\d)?", line)
+        if match:
+            name = match.group(1).strip()
+            rating = match.group(2)
+            if rating:
+                formatted.append(f"- **{name}** ⭐️ {rating}")
+            else:
+                formatted.append(f"- **{name}**")
+        else:
+            formatted.append(f"- {line}")
+    return "\n".join(formatted)
 def render_chat_interface(messages, assistant, input_placeholder, message_type="chat"):
-    """Render a chat interface with message history and input"""
+    # Tạo container chứa toàn bộ phần chat
     chat_container = st.container()
+
     with chat_container:
-        # Hiển thị lịch sử tin nhắn
+        # Hiển thị toàn bộ message đã có
         for msg in messages:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
-    # Hiển thị các gợi ý nếu không có tin nhắn
-    if not messages:
-        st.markdown("### Suggested Questions:")
-        suggested_prompts = assistant.get_suggested_prompts()
-        cols = st.columns(2)
-        with cols[0]:
-            for prompt in suggested_prompts["column1"]:
-                st.markdown(f"- {prompt}")
-        with cols[1]:
-            for prompt in suggested_prompts["column2"]:
-                st.markdown(f"- {prompt}")
+        # Gợi ý nếu chưa có message nào
+        if not messages:
+            st.markdown("### Suggested Questions:")
+            suggested_prompts = assistant.get_suggested_prompts()
+            cols = st.columns(2)
+            with cols[0]:
+                for prompt in suggested_prompts["column1"]:
+                    st.markdown(f"- {prompt}")
+            with cols[1]:
+                for prompt in suggested_prompts["column2"]:
+                    st.markdown(f"- {prompt}")
 
-    # Phần nhập input chat luôn nằm ở cuối
+    # Ô nhập liệu LUÔN ở cuối
     user_input = st.chat_input(input_placeholder)
+
     if user_input:
-        # Thêm tin nhắn của người dùng
+        # Lưu và hiển thị tin nhắn người dùng
         messages.append({"role": "user", "content": user_input})
         with chat_container:
             with st.chat_message("user"):
                 st.markdown(user_input)
 
-        # Lấy và hiển thị phản hồi từ AI
-        with chat_container:
-            with st.chat_message("assistant"):
-                response = assistant.get_response(user_input)
-                st.markdown(response)
-                messages.append({"role": "assistant", "content": response})
-        # Lấy và hiển thị phản hồi từ AI dưới dạng streaming
+        # Lấy phản hồi từ AI
+        # response = assistant.get_response(user_input)
+        # messages.append({"role": "assistant", "content": response})
         # with chat_container:
         #     with st.chat_message("assistant"):
-        #         message_placeholder = st.empty()
-        #         full_response = ""
-        #         for chunk in assistant.get_streaming_response(user_input):
-        #             full_response += chunk.content
-        #             message_placeholder.markdown(full_response + "▌")
-        #         message_placeholder.markdown(full_response)
-        #         messages.append({"role": "assistant", "content": full_response})
+        #         st.markdown(response)
+        # Lấy và hiển thị phản hồi từ AI dưới dạng streaming
+        with chat_container:
+            with st.chat_message("assistant"):
+                message_placeholder = st.empty()
+                full_response = ""
+
+                for chunk in assistant.get_streaming_response(user_input):
+                    full_response += chunk.content + "\n"  # thêm dấu xuống dòng
+                    # Hoặc có thể wrap trong <div> giữ nguyên format
+                    message_placeholder.markdown(f"<div style='white-space: pre-wrap;'>{full_response}</div>", unsafe_allow_html=True)
+
+                message_placeholder.markdown(f"<div style='white-space: pre-wrap;'>{full_response}</div>", unsafe_allow_html=True)
+        # Lưu hội thoại
+        messages.append({"role": "assistant", "content": full_response})
+
 
 def render_research_tab():
     st.header("Travel Research Assistant")
